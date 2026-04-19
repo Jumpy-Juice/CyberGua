@@ -60,6 +60,17 @@ body {
   background-attachment: fixed;
 }
 
+@media (max-width: 767px) {
+  /* 固定背景在 iOS 上易抖动、叠层错乱，小屏改为随页面滚动 */
+  body {
+    background-attachment: scroll;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
 #app {
   min-height: 100vh;
   width: 100%;

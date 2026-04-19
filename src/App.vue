@@ -590,4 +590,111 @@ function onPrimary() {
     align-items: center;
   }
 }
+
+@media (max-width: 767px) {
+  .divination-view {
+    overflow-x: hidden;
+  }
+
+  .landing-view {
+    margin: 6vh auto;
+    padding: 0 max(16px, env(safe-area-inset-right)) 40px
+      max(16px, env(safe-area-inset-left));
+  }
+
+  .landing-title {
+    letter-spacing: 0.12em;
+  }
+
+  .page-shell {
+    padding: 12px max(12px, env(safe-area-inset-right)) 28px
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .top-bar {
+    padding: 4px 0 14px;
+  }
+
+  .top-bar__actions {
+    gap: 6px;
+    max-width: 100%;
+  }
+
+  .top-bar__actions :deep(.el-button) {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .question-line {
+    font-size: 0.86rem;
+    line-height: 1.5;
+    padding: 0 4px;
+  }
+
+  .main-pad {
+    padding-top: 12px;
+  }
+
+  .panel.interaction {
+    padding: 12px 12px 14px;
+    border-radius: 10px;
+    max-width: 100%;
+  }
+
+  .progress-row {
+    margin-bottom: 12px;
+  }
+
+  .progress-row :deep(.el-tag) {
+    font-size: 13px;
+  }
+
+  .dynamic-explain :deep(.el-alert__title) {
+    font-size: 0.98rem;
+  }
+
+  .dyn-desc {
+    text-align: start;
+  }
+
+  .interaction-board {
+    /* 高度随内容：勿再用 520px/62vh 撑高，否则缩放后草只占顶部一条、虚线框特别长 */
+    min-height: unset;
+    padding: 8px 8px 12px;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .board-stage {
+    flex: 0 0 auto;
+    align-self: stretch;
+    min-height: 0;
+    max-width: 100%;
+    /* 供 100cqi：按卡片内真实宽度算 --board-scale */
+    container-type: inline-size;
+  }
+
+  .interaction-board__footer {
+    padding-top: 10px;
+  }
+
+  .primary-action {
+    min-width: 0;
+    width: min(100%, 280px);
+  }
+
+  .hexagram-cards {
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+
+  .result-stack {
+    gap: 16px;
+  }
+
+  .result-hero {
+    padding: 4px 0 6px;
+  }
+}
 </style>

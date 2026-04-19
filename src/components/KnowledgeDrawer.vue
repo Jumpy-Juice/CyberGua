@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -12,6 +12,24 @@ const emit = defineEmits<{
 const visible = computed({
   get: () => props.modelValue,
   set: (v: boolean) => emit('update:modelValue', v),
+})
+
+const viewportNarrow = ref(false)
+
+function syncViewport() {
+  viewportNarrow.value =
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+}
+
+const drawerSize = computed(() => (viewportNarrow.value ? '100%' : 'min(520px, 92vw)'))
+
+onMounted(() => {
+  syncViewport()
+  window.addEventListener('resize', syncViewport, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncViewport)
 })
 
 const tableData = [
@@ -51,7 +69,13 @@ const tableData = [
 </script>
 
 <template>
-  <el-drawer v-model="visible" title="大衍筮法百科" direction="rtl" size="min(520px, 92vw)" class="knowledge-drawer">
+  <el-drawer
+    v-model="visible"
+    title="大衍筮法百科"
+    direction="rtl"
+    :size="drawerSize"
+    class="knowledge-drawer"
+  >
     <div class="drawer-body">
       <section class="kb-section">
         <h2 class="kb-h2">一、核心基础概念</h2>
@@ -96,14 +120,16 @@ const tableData = [
 
       <section class="kb-section">
         <h2 class="kb-h2">三、关键结果对应表</h2>
-        <el-table :data="tableData" stripe border class="kb-table" size="small">
-          <el-table-column prop="num" label="爻数" width="72" align="center" />
-          <el-table-column prop="name" label="名称" width="88" align="center" />
-          <el-table-column prop="type" label="爻性" width="88" align="center" />
-          <el-table-column prop="moving" label="变爻与否" width="100" align="center" />
-          <el-table-column prop="symbol" label="符号" width="72" align="center" />
-          <el-table-column prop="change" label="变卦处理" min-width="120" />
-        </el-table>
+        <div class="kb-table-wrap">
+          <el-table :data="tableData" stripe border class="kb-table" size="small">
+            <el-table-column prop="num" label="爻数" width="72" align="center" />
+            <el-table-column prop="name" label="名称" width="88" align="center" />
+            <el-table-column prop="type" label="爻性" width="88" align="center" />
+            <el-table-column prop="moving" label="变爻与否" width="100" align="center" />
+            <el-table-column prop="symbol" label="符号" width="72" align="center" />
+            <el-table-column prop="change" label="变卦处理" min-width="120" />
+          </el-table>
+        </div>
       </section>
     </div>
   </el-drawer>
@@ -148,6 +174,12 @@ const tableData = [
 
 .kb-table {
   width: 100%;
+}
+
+.kb-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 </style>
 

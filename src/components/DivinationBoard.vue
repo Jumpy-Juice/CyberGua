@@ -9,7 +9,67 @@ const store = useDivinationStore()
 const { currentSnapshot, stepState } = storeToRefs(store)
 
 const boardRef = ref<HTMLElement | null>(null)
+const boardOuterRef = ref<HTMLElement | null>(null)
 const overlayRef = ref<HTMLElement | null>(null)
+
+/** 小屏：按盘面实际宽度写 --board-scale，保证 GSAP 动画不越界 */
+const MOBILE_MQ = '(max-width: 767px)'
+/** 逻辑上「动画横向吃满」的参考宽度（px，scale=1），偏大以保证分草后仍不越界 */
+/** 略小于 900：整体盘面稍大一点，字与草一起变大，不靠「反算字号」避免叠字 */
+const MOBILE_DESIGN_WIDTH = 820
+const MOBILE_SCALE_PAD = 14
+const MOBILE_SCALE_MIN = 0.22
+const MOBILE_SCALE_MAX = 0.62
+
+let boardOuterRo: ResizeObserver | null = null
+let mobileMq: MediaQueryList | null = null
+
+function isMobileBoardLayout(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia(MOBILE_MQ).matches
+}
+
+function computeMobileBoardScale(widthPx: number): number {
+  const w = Math.max(0, widthPx)
+  const s = (w - MOBILE_SCALE_PAD) / MOBILE_DESIGN_WIDTH
+  return Math.min(MOBILE_SCALE_MAX, Math.max(MOBILE_SCALE_MIN, s))
+}
+
+function applyMobileBoardMetrics() {
+  const outer = boardOuterRef.value
+  if (!outer) return
+  if (!isMobileBoardLayout()) {
+    outer.style.removeProperty('--board-scale')
+    outer.style.removeProperty('height')
+    return
+  }
+  const s = computeMobileBoardScale(outer.getBoundingClientRect().width)
+  outer.style.setProperty('--board-scale', String(s))
+  outer.style.setProperty('height', `calc(520px * ${s})`)
+}
+
+function teardownBoardOuterRo() {
+  boardOuterRo?.disconnect()
+  boardOuterRo = null
+}
+
+function setupBoardOuterRo() {
+  teardownBoardOuterRo()
+  if (!isMobileBoardLayout()) return
+  const outer = boardOuterRef.value
+  if (!outer || typeof ResizeObserver === 'undefined') return
+  boardOuterRo = new ResizeObserver(() => {
+    applyMobileBoardMetrics()
+  })
+  boardOuterRo.observe(outer)
+  applyMobileBoardMetrics()
+}
+
+function onMobileMqChange() {
+  if (isMobileBoardLayout()) setupBoardOuterRo()
+  else teardownBoardOuterRo()
+  applyMobileBoardMetrics()
+}
 
 const showDivideOverlay = computed(
   () => stepState.value === 'DIVIDE' && currentSnapshot.value == null,
@@ -485,18 +545,31 @@ watch(
 )
 
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    mobileMq = window.matchMedia(MOBILE_MQ)
+    mobileMq.addEventListener('change', onMobileMqChange)
+    if (isMobileBoardLayout()) {
+      nextTick(() => {
+        setupBoardOuterRo()
+      })
+    }
+  }
   nextTick(() => {
     layoutBundle(activeSticks.value)
+    applyMobileBoardMetrics()
   })
 })
 
 onUnmounted(() => {
+  mobileMq?.removeEventListener('change', onMobileMqChange)
+  teardownBoardOuterRo()
   killBoardTweens()
 })
 </script>
 
 <template>
-  <div ref="boardRef" class="board-container">
+  <div ref="boardOuterRef" class="board-outer">
+    <div ref="boardRef" class="board-container">
     <div class="zones-background" aria-hidden="true">
       <div class="zone zone-top-left">
         <span>归奇 (弃置)</span>
@@ -554,10 +627,17 @@ onUnmounted(() => {
     </div>
 
     <p v-show="showDivideOverlay" class="divide-hint">指尖划过，分天定地</p>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.board-outer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .board-container {
   position: relative;
   width: 100%;
@@ -731,5 +811,96 @@ onUnmounted(() => {
   box-shadow:
     1px 1px 3px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(180, 160, 130, 0.36);
+}
+
+@media (max-width: 767px) {
+  /*
+   * 首帧/无 ResizeObserver 时的兜底；运行后由脚本按盘面真实宽度覆盖 --board-scale。
+   */
+  .board-outer {
+    --board-scale: min(0.62, max(0.26, calc((100vw - 96px) / 760px)));
+    height: calc(520px * var(--board-scale));
+    overflow: hidden;
+    align-items: flex-start;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .board-container {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 520px;
+    transform: scale(var(--board-scale));
+    transform-origin: top center;
+    /* 收紧上下留白，让小屏里「草」相对盘面更饱满 */
+    padding: 56px 10px 18px;
+  }
+
+  /*
+   * 勿再用「字号 / scale」：会在缩放容器内把字放得过大，象限框是绝对定位，文字互相压成一片。
+   * 左右区竖排以省宽；四角略小；整体可读性主要靠略提高 --board-scale（见脚本常量）。
+   */
+  .zone span {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    opacity: 0.48;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    white-space: nowrap;
+  }
+
+  .zone-left span,
+  .zone-right span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    max-height: 100%;
+  }
+
+  .zone-top-left span,
+  .zone-top-right span {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    margin-top: 18px;
+  }
+
+  .zone-center span {
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    white-space: normal;
+    text-align: center;
+    max-width: 92%;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .interaction-overlay {
+    left: 6%;
+    right: 6%;
+    top: 22%;
+    bottom: 20%;
+  }
+
+  .divide-hint {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: rgba(62, 54, 44, 0.72);
+    text-shadow:
+      0 0 6px rgba(255, 253, 248, 0.95),
+      0 1px 0 rgba(255, 253, 248, 0.9);
+  }
+
+  /* 蓍草本体缩小，减轻旋转时的外接矩形「探出」边框 */
+  .stick {
+    width: 3px;
+    height: 102px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+  }
 }
 </style>
